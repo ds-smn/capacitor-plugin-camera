@@ -139,12 +139,12 @@ public class CameraPreviewPlugin extends Plugin {
 
             exec = Executors.newSingleThreadExecutor();
             cameraProviderFuture = ProcessCameraProvider.getInstance(getContext());
-            
+
             // Initialize TFLite blur detection helper
             blurDetectionHelper = new BlurDetectionHelper();
             boolean tfliteInitialized = blurDetectionHelper.initialize(getContext());
             Log.d("Camera", "TFLite blur detection initialized: " + tfliteInitialized);
-            
+
             cameraProviderFuture.addListener(() -> {
             try {
                 cameraProvider = cameraProviderFuture.get();
@@ -219,7 +219,7 @@ public class CameraPreviewPlugin extends Plugin {
                         String base64 = bitmap2Base64(bitmap, desiredQuality);
                         JSObject result = new JSObject();
                         result.put("base64", base64);
-                        
+
                         // Only detect blur if checkBlur option is true
                         boolean shouldCheckBlur = takeSnapshotCall.getBoolean("checkBlur", false);
                         if (shouldCheckBlur) {
@@ -229,7 +229,7 @@ public class CameraPreviewPlugin extends Plugin {
                         } else {
                             Log.d("Camera", "Blur detection disabled for performance");
                         }
-                        
+
                         takeSnapshotCall.resolve(result);
                         takeSnapshotCall = null;
                     }
@@ -290,14 +290,14 @@ public class CameraPreviewPlugin extends Plugin {
         // Use high-quality resolution options for better zoom quality
         // These are commonly supported resolutions across Android devices
         int orientation = getContext().getResources().getConfiguration().orientation;
-        
+
         // High-quality resolution options (in order of preference)
         Size[] preferredResolutions;
-        
+
         if (orientation == Configuration.ORIENTATION_PORTRAIT) {
             preferredResolutions = new Size[]{
             new Size(3024, 4032), // 12MP portrait
-            new Size(2160, 3840), // 4K portrait  
+            new Size(2160, 3840), // 4K portrait
             new Size(2448, 3264), // 8MP portrait
             new Size(1920, 2560), // 5MP portrait
             new Size(1440, 1920), // 3MP portrait
@@ -307,22 +307,22 @@ public class CameraPreviewPlugin extends Plugin {
             preferredResolutions = new Size[]{
             new Size(4032, 3024), // 12MP landscape
             new Size(3840, 2160), // 4K landscape
-            new Size(3264, 2448), // 8MP landscape  
+            new Size(3264, 2448), // 8MP landscape
             new Size(2560, 1920), // 5MP landscape
             new Size(1920, 1440), // 3MP landscape
             new Size(1920, 1080), // Full HD landscape
             };
         }
-        
+
         // Return the first (highest quality) option - CameraX will adapt if not supported
         Size optimalResolution = preferredResolutions[0];
         Log.d("Camera", "Selected optimal resolution: " + optimalResolution.getWidth() + "x" + optimalResolution.getHeight());
         return optimalResolution;
-        
+
         } catch (Exception e) {
         Log.e("Camera", "Error selecting optimal resolution: " + e.getMessage());
         }
-        
+
         // Fallback: return null to let CameraX auto-select
         Log.d("Camera", "Using CameraX auto-resolution selection as fallback");
         return null;
@@ -339,17 +339,17 @@ public class CameraPreviewPlugin extends Plugin {
                 float centerX = previewView.getWidth() / 2.0f;
                 float centerY = previewView.getHeight() / 2.0f;
                 MeteringPoint centerPoint = factory.createPoint(centerX, centerY);
-                
+
                 // Create responsive auto-focus action with fast duration for quick transitions
                 FocusMeteringAction initialFocus = new FocusMeteringAction.Builder(centerPoint)
                     .setAutoCancelDuration(1, TimeUnit.SECONDS) // Fast 1 second for responsive focus
                     .build();
-                
+
                 camera.getCameraControl().startFocusAndMetering(initialFocus);
-                
+
                 // Enable continuous auto-focus by starting a background focus monitoring
                 startContinuousAutoFocus();
-                
+
                 Log.d("Camera", "Initialized responsive auto-focus with continuous monitoring");
             } catch (Exception e) {
                 Log.e("Camera", "Failed to initialize responsive auto-focus: " + e.getMessage());
@@ -400,17 +400,17 @@ public class CameraPreviewPlugin extends Plugin {
                         public void run() {
                             try {
                                 Thread.sleep(50); // Brief delay for surface initialization
-                                
+
                                 getActivity().runOnUiThread(new Runnable() {
                                     @Override
                                     public void run() {
                                         try {
                                             // Bind camera to lifecycle
                                             camera = cameraProvider.bindToLifecycle((LifecycleOwner) getContext(), cameraSelector, useCaseGroup);
-                                            
+
                                             // Initialize responsive auto-focus for better performance
                                             initializeResponsiveAutoFocus();
-                                            
+
                                             triggerOnPlayed();
                                             call.resolve();
                                         } catch (Exception e) {
@@ -475,13 +475,13 @@ public class CameraPreviewPlugin extends Plugin {
     public void toggleTorch(PluginCall call) {
         try {
             boolean torchOn = call.getBoolean("on", true);
-            
+
             if (torchOn) {
                 camera.getCameraControl().enableTorch(true);
             } else {
                 camera.getCameraControl().enableTorch(false);
             }
-            
+
             // Check if it's front camera and adjust background accordingly
             if (cameraSelector != null && cameraSelector.getLensFacing() == CameraSelector.LENS_FACING_FRONT) {
                 if (torchOn) {
@@ -521,7 +521,7 @@ public class CameraPreviewPlugin extends Plugin {
             Float factor = call.getFloat("factor");
             try {
                 camera.getCameraControl().setZoomRatio(factor);
-                
+
                 // Automatically trigger focus after zoom change for better UX
                 ExecutorService zoomFocusExecutor = Executors.newSingleThreadExecutor();
                 zoomFocusExecutor.execute(new Runnable() {
@@ -530,7 +530,7 @@ public class CameraPreviewPlugin extends Plugin {
                         try {
                             // Wait briefly for zoom to settle - faster for responsive focus
                             Thread.sleep(150);
-                            
+
                             getActivity().runOnUiThread(new Runnable() {
                                 @Override
                                 public void run() {
@@ -541,13 +541,13 @@ public class CameraPreviewPlugin extends Plugin {
                                             float centerX = previewView.getWidth() / 2.0f;
                                             float centerY = previewView.getHeight() / 2.0f;
                                             MeteringPoint centerPoint = factory.createPoint(centerX, centerY);
-                                            
+
                                             // Use fast focus settings for responsive zoom-triggered focus
                                             FocusMeteringAction zoomFocusAction = new FocusMeteringAction.Builder(centerPoint,
                                                 FocusMeteringAction.FLAG_AF | FocusMeteringAction.FLAG_AE)
                                                 .setAutoCancelDuration(1, TimeUnit.SECONDS) // Fast 1 second for zoom focus
                                                 .build();
-                                            
+
                                             // Trigger focus after zoom change - simplified without result handling
                                             camera.getCameraControl().startFocusAndMetering(zoomFocusAction);
                                         }
@@ -561,7 +561,7 @@ public class CameraPreviewPlugin extends Plugin {
                         }
                     }
                 });
-                
+
             } catch (Exception e) {
                 e.printStackTrace();
                 call.resolve();
@@ -572,7 +572,7 @@ public class CameraPreviewPlugin extends Plugin {
 
     @PluginMethod
     public void setFocus(PluginCall call) {
-        
+
         JSObject response = new JSObject();
         if (!call.hasOption("x") || !call.hasOption("y")) {
             response.put("success", false);
@@ -609,7 +609,7 @@ public class CameraPreviewPlugin extends Plugin {
             try {
             // Only cancel if focus has been stable for a while to reduce multiple tap issues
             // This prevents interrupting legitimate focus operations
-            
+
             // Use PreviewView's built-in MeteringPointFactory for proper coordinate transformation
             MeteringPointFactory factory = previewView.getMeteringPointFactory();
 
@@ -665,7 +665,7 @@ public class CameraPreviewPlugin extends Plugin {
                             // If manual focus was successful, maintain it with a follow-up action
                             maintainFocusAtPoint(previewX, previewY);
                         }
-                        
+
                         call.resolve(response);
                     } catch (Exception e) {
                         response.put("success", false);
@@ -736,11 +736,11 @@ public class CameraPreviewPlugin extends Plugin {
                     float centerX = previewView.getWidth() / 2.0f;
                     float centerY = previewView.getHeight() / 2.0f;
                     MeteringPoint centerPoint = factory.createPoint(centerX, centerY);
-                    
+
                     FocusMeteringAction infinityAction = new FocusMeteringAction.Builder(centerPoint)
                         .setAutoCancelDuration(1, TimeUnit.SECONDS)
                         .build();
-                    
+
                     camera.getCameraControl().startFocusAndMetering(infinityAction);
                 }
                 break;
@@ -767,9 +767,9 @@ public class CameraPreviewPlugin extends Plugin {
      */
     private void startAdaptiveContinuousFocus() {
         if (camera == null || previewView == null) return;
-        
+
         ExecutorService adaptiveFocusExecutor = Executors.newSingleThreadExecutor();
-        
+
         adaptiveFocusExecutor.execute(new Runnable() {
             @Override
             public void run() {
@@ -777,36 +777,36 @@ public class CameraPreviewPlugin extends Plugin {
                     // Create multiple focus points for better scene coverage
                     float[] focusPoints = {
                         0.3f, 0.3f,  // Top-left quadrant
-                        0.7f, 0.3f,  // Top-right quadrant  
+                        0.7f, 0.3f,  // Top-right quadrant
                         0.5f, 0.5f,  // Center
                         0.3f, 0.7f,  // Bottom-left quadrant
                         0.7f, 0.7f   // Bottom-right quadrant
                     };
-                    
+
                     int pointIndex = 0;
-                    
+
                     while (camera != null && camera.getCameraInfo().getCameraState().getValue().getType() == CameraState.Type.OPEN) {
                         Thread.sleep(600); // Focus check every 600ms for faster near/far transitions
-                        
+
                         final int currentPointIndex = pointIndex;
-                        
+
                         getActivity().runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
                                 try {
                                     if (camera != null && previewView != null) {
                                         MeteringPointFactory factory = previewView.getMeteringPointFactory();
-                                        
+
                                         // Use current focus point from the array
                                         float x = focusPoints[currentPointIndex * 2] * previewView.getWidth();
                                         float y = focusPoints[currentPointIndex * 2 + 1] * previewView.getHeight();
-                                        
+
                                         MeteringPoint adaptivePoint = factory.createPoint(x, y);
-                                        
+
                                         FocusMeteringAction adaptiveAction = new FocusMeteringAction.Builder(adaptivePoint)
                                             .setAutoCancelDuration(1, TimeUnit.SECONDS) // Fast 1 second for adaptive focus
                                             .build();
-                                        
+
                                         camera.getCameraControl().startFocusAndMetering(adaptiveAction);
                                         Log.d("Camera", "Adaptive focus at point: " + (currentPointIndex + 1));
                                     }
@@ -815,7 +815,7 @@ public class CameraPreviewPlugin extends Plugin {
                                 }
                             }
                         });
-                        
+
                         // Cycle through focus points
                         pointIndex = (pointIndex + 1) % (focusPoints.length / 2);
                     }
@@ -848,13 +848,13 @@ public class CameraPreviewPlugin extends Plugin {
                 float centerX = previewView.getWidth() / 2.0f;
                 float centerY = previewView.getHeight() / 2.0f;
                 MeteringPoint centerPoint = factory.createPoint(centerX, centerY);
-                
+
                 FocusMeteringAction restartAction = new FocusMeteringAction.Builder(centerPoint)
                     .setAutoCancelDuration(1, TimeUnit.SECONDS) // Fast 1 second for responsive restart
                     .build();
-                
+
                 camera.getCameraControl().startFocusAndMetering(restartAction);
-                
+
                 // Restart the continuous auto-focus monitoring
                 startContinuousAutoFocus();
             }
@@ -1081,7 +1081,7 @@ public class CameraPreviewPlugin extends Plugin {
             call.reject("Camera not initialized.");
             return;
         }
-        
+
         try {
             call.setKeepAlive(true);
             takeSnapshotCall = call;
@@ -1112,7 +1112,8 @@ public class CameraPreviewPlugin extends Plugin {
                 }
                 File file;
                 if (call.hasOption("pathToSave")) {
-                    file = new File(call.getString("pathToSave"));
+                    String dir = getContext().getDataDir() + "/files/" + call.getString("pathToSave");
+                    file = new File(dir);
                 } else {
                     File dir = getContext().getExternalCacheDir();
                     file = new File(dir, new Date().getTime() + ".jpg");
@@ -1302,18 +1303,18 @@ public class CameraPreviewPlugin extends Plugin {
             currentRecording = null;
             Log.d("Camera", "handleOnPause: Camera stopped and references cleared.");
         }
-        
+
         // Clean up TFLite resources
         // if (blurDetectionHelper != null) {
         //     blurDetectionHelper.close();
         // }
-        
+
         super.handleOnPause();
     }
 
     @Override
     protected void handleOnResume() {
-        if (camera != null) {
+        if (camera != null && camera.getCameraInfo().getCameraState().getValue() != null && previousCameraStatus.getType() != null) {
             if (previousCameraStatus.getType() == CameraState.Type.OPEN) {
                 camera = cameraProvider.bindToLifecycle((LifecycleOwner) getContext(), cameraSelector, useCaseGroup);
             }
@@ -1380,31 +1381,31 @@ public class CameraPreviewPlugin extends Plugin {
             call.reject("Image parameter is required");
             return;
         }
-        
+
         try {
             // Convert base64 string to Bitmap
             String base64String = imageString;
             if (imageString.startsWith("data:")) {
                 base64String = imageString.substring(imageString.indexOf(",") + 1);
             }
-            
+
             byte[] decodedBytes = Base64.decode(base64String, Base64.DEFAULT);
             Bitmap bitmap = BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.length);
-            
+
             if (bitmap == null) {
                 call.reject("Invalid image data");
                 return;
             }
-            
+
             // Use the new confidence detection method
             if (blurDetectionHelper != null && blurDetectionHelper.isInitialized()) {
                 java.util.Map<String, Object> result = blurDetectionHelper.detectBlurWithConfidence(bitmap);
-                
+
                 JSObject jsResult = new JSObject();
                 jsResult.put("isBlur", result.get("isBlur"));
                 jsResult.put("blurConfidence", result.get("blurConfidence"));
                 jsResult.put("sharpConfidence", result.get("sharpConfidence"));
-                
+
                 call.resolve(jsResult);
             } else {
                 // Fallback to Laplacian algorithm with confidence scores
@@ -1413,15 +1414,15 @@ public class CameraPreviewPlugin extends Plugin {
                 double normalizedScore = Math.max(0.0, Math.min(1.0, laplacianScore / 300.0));
                 double sharpConfidence = normalizedScore;
                 double blurConfidence = 1.0 - normalizedScore;
-                
+
                 JSObject result = new JSObject();
                 result.put("isBlur", isBlur);
                 result.put("blurConfidence", blurConfidence);
                 result.put("sharpConfidence", sharpConfidence);
-                
+
                 call.resolve(result);
             }
-            
+
         } catch (Exception e) {
             call.reject("Failed to process image: " + e.getMessage());
         }
@@ -1445,7 +1446,7 @@ public class CameraPreviewPlugin extends Plugin {
      */
     private boolean calculateBlurResult(Bitmap bitmap) {
         if (bitmap == null) return false;
-        
+
         // Use TFLite model if available, otherwise fallback to Laplacian
         if (blurDetectionHelper != null && blurDetectionHelper.isInitialized()) {
             return blurDetectionHelper.isBlurry(bitmap);
@@ -1455,21 +1456,21 @@ public class CameraPreviewPlugin extends Plugin {
             return laplacianScore < 50;
         }
     }
-    
+
     /**
      * Original Laplacian blur detection (fallback)
      * Returns raw Laplacian variance score (will be converted to percentage by BlurDetectionHelper)
      */
     private double calculateLaplacianBlurScore(Bitmap bitmap) {
         if (bitmap == null) return 0.0;
-        
+
         int width = bitmap.getWidth();
         int height = bitmap.getHeight();
-        
+
         // Convert to grayscale for better blur detection
         int[] pixels = new int[width * height];
         bitmap.getPixels(pixels, 0, width, 0, 0, width, height);
-        
+
         double[] grayscale = new double[width * height];
         for (int i = 0; i < pixels.length; i++) {
             int pixel = pixels[i];
@@ -1478,28 +1479,28 @@ public class CameraPreviewPlugin extends Plugin {
             int b = pixel & 0xFF;
             grayscale[i] = 0.299 * r + 0.587 * g + 0.114 * b;
         }
-        
+
         // Apply Laplacian kernel for edge detection
         double variance = 0.0;
         int count = 0;
-        
+
         // Sample every 4th pixel for performance (similar to web implementation)
         int step = 4;
         for (int y = step; y < height - step; y += step) {
             for (int x = step; x < width - step; x += step) {
                 int idx = y * width + x;
-                
+
                 // 3x3 Laplacian kernel
-                double laplacian = 
+                double laplacian =
                     -grayscale[idx - width - 1] - grayscale[idx - width] - grayscale[idx - width + 1] +
                     -grayscale[idx - 1] + 8 * grayscale[idx] - grayscale[idx + 1] +
                     -grayscale[idx + width - 1] - grayscale[idx + width] - grayscale[idx + width + 1];
-                
+
                 variance += laplacian * laplacian;
                 count++;
             }
         }
-        
+
         return count > 0 ? variance / count : 0.0;
     }
 
@@ -1510,14 +1511,14 @@ public class CameraPreviewPlugin extends Plugin {
         if (camera != null && previewView != null) {
             // Use a separate executor for continuous focus to avoid blocking
             ExecutorService focusExecutor = Executors.newSingleThreadExecutor();
-            
+
             focusExecutor.execute(new Runnable() {
                 @Override
                 public void run() {
                     try {
                         while (camera != null && camera.getCameraInfo().getCameraState().getValue().getType() == CameraState.Type.OPEN) {
                             Thread.sleep(800); // Check every 800ms for faster transitions
-                            
+
                             getActivity().runOnUiThread(new Runnable() {
                                 @Override
                                 public void run() {
@@ -1527,11 +1528,11 @@ public class CameraPreviewPlugin extends Plugin {
                                         float centerX = previewView.getWidth() / 2.0f;
                                         float centerY = previewView.getHeight() / 2.0f;
                                         MeteringPoint centerPoint = factory.createPoint(centerX, centerY);
-                                        
+
                                         FocusMeteringAction continuousAction = new FocusMeteringAction.Builder(centerPoint)
                                             .setAutoCancelDuration(1, TimeUnit.SECONDS) // Fast 1 second for responsive transitions
                                             .build();
-                                        
+
                                         camera.getCameraControl().startFocusAndMetering(continuousAction);
                                     } catch (Exception e) {
                                         Log.d("Camera", "Continuous focus update failed: " + e.getMessage());
@@ -1553,7 +1554,7 @@ public class CameraPreviewPlugin extends Plugin {
      */
     private void performBackupFocus(float previewX, float previewY) {
         if (camera == null || previewView == null) return;
-        
+
         // Wait a moment for the camera to settle
         ExecutorService backupFocusExecutor = Executors.newSingleThreadExecutor();
         backupFocusExecutor.execute(new Runnable() {
@@ -1561,7 +1562,7 @@ public class CameraPreviewPlugin extends Plugin {
             public void run() {
                                     try {
                         Thread.sleep(200); // Wait 200ms for faster backup focus
-                    
+
                     getActivity().runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
@@ -1569,16 +1570,16 @@ public class CameraPreviewPlugin extends Plugin {
                                 if (camera != null && previewView != null) {
                                     MeteringPointFactory factory = previewView.getMeteringPointFactory();
                                     MeteringPoint backupPoint = factory.createPoint(previewX, previewY);
-                                    
+
                                     // Try with fast duration for responsive backup focus
-                                    FocusMeteringAction backupAction = new FocusMeteringAction.Builder(backupPoint, 
+                                    FocusMeteringAction backupAction = new FocusMeteringAction.Builder(backupPoint,
                                         FocusMeteringAction.FLAG_AF | FocusMeteringAction.FLAG_AE)
                                         .setAutoCancelDuration(1, TimeUnit.SECONDS) // Fast 1 second for backup
                                         .build();
-                                    
-                                    ListenableFuture<FocusMeteringResult> backupFuture = 
+
+                                    ListenableFuture<FocusMeteringResult> backupFuture =
                                         camera.getCameraControl().startFocusAndMetering(backupAction);
-                                    
+
                                     backupFuture.addListener(new Runnable() {
                                         @Override
                                         public void run() {
@@ -1613,10 +1614,10 @@ public class CameraPreviewPlugin extends Plugin {
      */
     private void maintainFocusAtPoint(float previewX, float previewY) {
         if (camera == null || previewView == null) return;
-        
+
         // Use a separate executor for focus maintenance
         ExecutorService focusMaintainExecutor = Executors.newSingleThreadExecutor();
-        
+
         focusMaintainExecutor.execute(new Runnable() {
             @Override
             public void run() {
@@ -1624,7 +1625,7 @@ public class CameraPreviewPlugin extends Plugin {
                     // Maintain focus for 2 seconds with quick refocus for responsive transitions
                     for (int i = 0; i < 2; i++) {
                         Thread.sleep(1000); // Wait 1 second between focus actions
-                        
+
                         getActivity().runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
@@ -1632,11 +1633,11 @@ public class CameraPreviewPlugin extends Plugin {
                                     if (camera != null && camera.getCameraInfo().getCameraState().getValue().getType() == CameraState.Type.OPEN) {
                                         MeteringPointFactory factory = previewView.getMeteringPointFactory();
                                         MeteringPoint maintainPoint = factory.createPoint(previewX, previewY);
-                                        
+
                                         FocusMeteringAction maintainAction = new FocusMeteringAction.Builder(maintainPoint)
                                             .setAutoCancelDuration(1, TimeUnit.SECONDS) // Fast 1 second maintenance
                                             .build();
-                                        
+
                                         camera.getCameraControl().startFocusAndMetering(maintainAction);
                                         Log.d("Camera", "Maintaining focus at tapped point");
                                     }
